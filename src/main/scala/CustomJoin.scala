@@ -6,7 +6,8 @@ import org.apache.spark.sql.types.{DataTypes, StructField, StructType}
 object CustomJoin {
   def main(args: Array[String]): Unit = {
 
-    Spark addStrategy SmartJoin
+    Spark addStrategy SmartJoinStrategy
+    Spark addOptimization SmartJoinOptimization
 
     val empData = List(
       Row(101, "John",  "Smith",                new Date(65, 1, 5),   "CEO",                  100000.5,      1),
@@ -57,6 +58,8 @@ object CustomJoin {
     )
     CachedJoin.registerJoin(emp_depData, emp, "depid", dep, "depid")
 
-    Spark.sql("SELECT * FROM emp JOIN dep ON emp.depid = dep.depid").show()
+    val res = Spark.sql("SELECT * FROM emp JOIN dep ON emp.depid=dep.depid WHERE fname='John'")
+    res.explain(true)
+    res.show()
   }
 }

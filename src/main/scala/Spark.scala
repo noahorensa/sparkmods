@@ -10,6 +10,7 @@ import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.rules.Rule
 
+import scala.reflect.ClassTag
 import scala.reflect.runtime.universe
 
 object Spark {
@@ -116,4 +117,9 @@ object Spark {
   def stop(): Unit = spark.stop()
 
   def close(): Unit = spark.close()
+
+  // delegate methods to sparkContext
+  def parallelize[T](seq: Seq[T], numSlices: Int)(implicit evidence$1: ClassTag[T]): RDD[T] = sc.parallelize(seq, numSlices)(evidence$1)
+
+  def parallelize[T](seq: Seq[T])(implicit evidence$1: ClassTag[T]): RDD[T] = sc.parallelize(seq)(evidence$1)
 }

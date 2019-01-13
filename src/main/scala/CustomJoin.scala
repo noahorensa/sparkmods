@@ -58,7 +58,7 @@ object CustomJoin {
     )
     CachedJoin.registerJoin(emp_depData, emp, "depid", dep, "depid")
 
-    val res = Spark.sql("SELECT * FROM emp JOIN dep ON emp.depid=dep.depid WHERE fname='John'")
+    val res = Spark.sql("SELECT * FROM emp JOIN dep ON emp.depid=dep.depid WHERE emp.depid=1")
     res.explain(true)
     res.show()
   }

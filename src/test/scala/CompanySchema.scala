@@ -3,13 +3,10 @@ import java.sql.Date
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types.{DataTypes, StructField, StructType}
 
-object CustomJoin {
-  def main(args: Array[String]): Unit = {
+object CompanySchema {
 
-    Spark addStrategy SmartJoinStrategy
-    Spark addOptimization SmartJoinOptimization
-
-    val empData = List(
+  def init(): Unit = {
+    val employee = new SmartRelation(List(
       Row(101, "John",  "Smith",                new Date(65, 1, 5),   "CEO",                  100000.5,      1),
       Row(102, "John",  "Not Smith",            new Date(64, 11, 5),  "Manager of Stuff",     100.0,         1),
       Row(103, "John",  "Definitely Not Smith", new Date(30, 2, 9),   "Not CEO",              1.11,          1),
@@ -19,32 +16,49 @@ object CustomJoin {
       Row(107, "Lana",  "Lola",                 new Date(42, 9, 9),   "COO",                  89999.0,       1),
       Row(108, "Sara",  "Look",                 new Date(59, 8, 7),   "Marketing Specialist", 1000.5,        2),
       Row(109, "Stan",  "The Man",              new Date(22, 11, 28), "Awesome man",          999999999.999, 3),
-      Row(110, "Bob",   "Blart",                new Date(65, 7, 13),  "HR Manager",           10.5,          4)
-    )
-    val empSchema = StructType(Array[StructField](
-      StructField("empid", DataTypes.IntegerType),
-      StructField("fname", DataTypes.StringType),
-      StructField("lname", DataTypes.StringType),
-      StructField("birthday", DataTypes.DateType),
-      StructField("position", DataTypes.StringType),
-      StructField("salary", DataTypes.DoubleType),
-      StructField("depid", DataTypes.IntegerType)
-    ))
-    val emp = new SmartRelation(empData, empSchema, "emp")
+      Row(110, "Bob",   "Blart",                new Date(65, 7, 13),  "HR Manager",           10.5,          4),
+      Row(111, "Dan",   "Mann",                 new Date(65, 8, 13),  "Something Engineer",   9.22,          5),
+      Row(112, "Sam",   "Summers",              new Date(52, 2, 12),  "Something Engineer",   8.45,          5),
+      Row(113, "Noah",  "Taylor",               new Date(95, 7, 17),  "Electrical Engineer",  8.24,          5),
+      Row(114, "Paul",  "Smartpants",           new Date(45, 1, 6),   "Head of Operations",   10.5,          6),
+      Row(115, "Ahmed", "Ops",                  new Date(73, 6, 17),  "Dev Ops",              10.5,          6),
+      Row(116, "John",  "Ops",                  new Date(82, 5, 16),  "Dev Ops",              10.5,          6)
+    ),
+      StructType(Array(
+        StructField("id", DataTypes.IntegerType),
+        StructField("fname", DataTypes.StringType),
+        StructField("lname", DataTypes.StringType),
+        StructField("birthday", DataTypes.DateType),
+        StructField("position", DataTypes.StringType),
+        StructField("salary", DataTypes.DoubleType),
+        StructField("department_id", DataTypes.IntegerType)
+      )), "employee")
 
-    val depData = List(
+    val department = new SmartRelation(List(
       Row(1, "Top Management"),
       Row(2, "Marketing"),
       Row(3, "Awesomeness"),
-      Row(4, "HR")
-    )
-    val depSchema = StructType(Array[StructField](
-      StructField("depid", DataTypes.IntegerType),
-      StructField("name", DataTypes.StringType)
-    ))
-    val dep = new SmartRelation(depData, depSchema, "dep")
+      Row(4, "HR"),
+      Row(5, "Engineering"),
+      Row(6, "Operations")
+    ),
+      StructType(Array(
+        StructField("id", DataTypes.IntegerType),
+        StructField("name", DataTypes.StringType)
+      )), "department")
 
-    val emp_depData = List(
+    val project = new SmartRelation(List(
+      Row(1, "Project X", 5),
+      Row(2, "Project Y", 5),
+      Row(3, "Project Z", 6)
+    ),
+      StructType(Array(
+        StructField("id", DataTypes.IntegerType),
+        StructField("name", DataTypes.StringType),
+        StructField("department_id", DataTypes.IntegerType)
+      )), "project")
+
+    CachedJoin.registerJoin(List(
       Row(101, "John",  "Smith",                new Date(65, 1, 5),   "CEO",                  100000.5,      1, 1, "Top Managgment"),
       Row(102, "John",  "Not Smith",            new Date(64, 11, 5),  "Manager of Stuff",     100.0,         1, 1, "Top Management"),
       Row(103, "John",  "Definitely Not Smith", new Date(30, 2, 9),   "Not CEO",              1.11,          1, 1, "Top Management"),
@@ -55,11 +69,12 @@ object CustomJoin {
       Row(108, "Sara",  "Look",                 new Date(59, 8, 7),   "Marketing Specialist", 1000.5,        2, 2, "Marketing"),
       Row(109, "Stan",  "The Man",              new Date(22, 12, 28), "Awesome man",          999999999.999, 3, 3, "Awesomeness"),
       Row(110, "Bob",   "Blart",                new Date(65, 7, 13),  "HR Manager",           10.5,          4, 4, "HR")
-    )
-    CachedJoin.registerJoin(emp_depData, emp, "depid", dep, "depid")
+    ), employee, "department_id", department, "id")
 
-    val res = Spark.sql("SELECT * FROM emp JOIN dep ON emp.depid=dep.depid WHERE emp.depid=1")
-    res.explain(true)
-    res.show()
+    CachedJoin.registerJoin(List(
+      Row(1, "Project X", 5, 5, "Engineering"),
+      Row(2, "Project Y", 5, 5, "Engineering"),
+      Row(3, "Project Z", 6, 6, "Operations")
+    ), project, "department_id", department, "id")
   }
 }

@@ -1,5 +1,5 @@
 import org.apache.spark.sql.Strategy
-import org.apache.spark.sql.catalyst.expressions.{And, Attribute, AttributeReference, BinaryExpression, EqualTo, Expression, IsNotNull, Literal, Or, PredicateHelper, UnaryExpression}
+import org.apache.spark.sql.catalyst.expressions.{And, Attribute, AttributeReference, EqualTo}
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.catalyst.rules.Rule

@@ -4,9 +4,9 @@ import org.apache.spark.sql.sources.{BaseRelation, TableScan}
 import org.apache.spark.sql.types.StructType
 
 class SmartRelation(data: List[Row], s:StructType, tableName: String) extends BaseRelation with TableScan {
-  val rdd: RDD[Row] = Spark.parallelize(data)
+  def rdd: RDD[Row] = Spark.sc.parallelize(data)
   rdd.setName(name)
-  val df: DataFrame = Spark.createDataFrame(rdd, s)
+  def df: DataFrame = Spark.spark.createDataFrame(rdd, s)
   df.createOrReplaceTempView(name)
 
   def name: String = tableName

@@ -12,7 +12,7 @@ import org.apache.spark.unsafe.types.UTF8String
 case class CachedJoin(join: SmartRelation, leftOutput: Seq[Attribute], rightOutput: Seq[Attribute]) extends SparkPlan {
 
   override protected def doExecute(): RDD[InternalRow] =
-    join.rdd.map(row => new RowAsInternalRow(row.toSeq.toArray).asInstanceOf[InternalRow])
+    join.buildScan().map(row => new RowAsInternalRow(row.toSeq.toArray).asInstanceOf[InternalRow])
 
   override def output: Seq[Attribute] = leftOutput ++ rightOutput
 
@@ -21,16 +21,22 @@ case class CachedJoin(join: SmartRelation, leftOutput: Seq[Attribute], rightOutp
 
 class RowAsInternalRow(val v: Array[Any]) extends GenericInternalRow(v) {
 
-  override def getUTF8String(ordinal: Int): UTF8String =
-    UTF8String.fromString(genericGet(ordinal).asInstanceOf[String])
-
-  override def getInt(ordinal: Int): Int = {
-    val value = genericGet(ordinal)
-    value match {
-      case d: Date => d.getDate
-      case i:Int => i
-    }
+  v.transform {
+    case s: String => UTF8String.fromString(s)
+    case d: Date => (d.getTime / 1000l / 60l / 60l / 24l).toInt
+    case e: Any => e
   }
+
+//  override def getUTF8String(ordinal: Int): UTF8String =
+//    UTF8String.fromString(genericGet(ordinal).asInstanceOf[String])
+//
+//  override def getInt(ordinal: Int): Int = {
+//    val value = genericGet(ordinal)
+//    value match {
+//      case d: Date => d.getDate
+//      case i:Int => i
+//    }
+//  }
 }
 
 object CachedJoin {
@@ -41,7 +47,7 @@ object CachedJoin {
                    leftTable: SmartRelation, leftCol: String,
                    rightTable: SmartRelation, rightCol: String): Unit = {
     val joinName = leftTable.name + "_" + rightTable.name + "_on_" + leftCol + "_eq_" + rightCol
-    val join = new SmartRelation(joinData, StructType(leftTable.schema.union(rightTable.schema)), joinName)
+    val join = SmartRelation(joinData, StructType(leftTable.schema.union(rightTable.schema)), joinName)
     registeredJoins += (joinName -> join)
   }
 

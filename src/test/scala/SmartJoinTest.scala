@@ -8,25 +8,38 @@ object SmartJoinTest {
 
     val queries = Array(
       "SELECT * " +
-      "FROM employee JOIN department ON employee.department_id = department.id " +
-      "WHERE employee.department_id = 1",
+        "FROM employee JOIN department ON employee.department_id = department.id " +
+        "WHERE employee.department_id = 1",
 
       "SELECT * " +
         "FROM (employee JOIN department ON employee.department_id = department.id) JOIN project ON employee.department_id = project.department_id",
 
       "SELECT * " +
         "FROM (employee JOIN department ON employee.department_id = department.id) JOIN project ON employee.department_id = project.department_id " +
-        "WHERE employee.department_id = 1"
+        "WHERE employee.department_id = 1",
+
+      "SELECT * " +
+        "FROM employee JOIN project ON employee.department_id = project.department_id",
+
+      "SELECT * " +
+        "FROM project JOIN department ON project.department_id = department.id",
+
+      "SELECT * " +
+        "FROM department JOIN project ON department.id = project.department_id"
     )
 
     val df1 = queries.map(spark.sql(_))
     val data1 = df1.map(_.collect())
+
+    df1(5).explain(true)
 
     Spark addStrategy SmartJoinStrategy
     Spark addOptimization SmartJoinOptimization
 
     val df2 = queries.map(spark.sql(_))
     val data2 = df2.map(_.collect())
+
+    df2(5).explain(true)
 
     def checkSame(data1: Any, data2: Any): Unit = {
       (data1, data2) match {

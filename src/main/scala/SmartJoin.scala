@@ -5,7 +5,7 @@ import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{LogicalRDD, SparkPlan}
 
-case class SmartJoin(joinId: String, left: LogicalPlan, right: LogicalPlan) extends BinaryNode {
+case class SmartJoin(joinId: JoinIdentity, left: LogicalPlan, right: LogicalPlan) extends BinaryNode {
 
   def getCachedJoin: Seq[SparkPlan] = CachedJoin.get(joinId, left.output, right.output) :: Nil
 
@@ -32,8 +32,8 @@ object SmartJoinOptimization extends Rule[LogicalPlan] {
         case relation: LogicalRDD => relation.rdd.name
         case _ => ""
       }
-      val joinId = lTable + "_" + rTable + "_on_" + a.name + "_eq_" + b.name
 
+      val joinId = JoinIdentity(lTable, a.name, rTable, b.name)
       if (CachedJoin.has(joinId))
         Filter(And(left.condition, right.condition), SmartJoin(joinId, left.child, right.child))
       else j
@@ -44,8 +44,7 @@ object SmartJoinOptimization extends Rule[LogicalPlan] {
         case _ => ""
       }
 
-      val joinId = lTable + "_" + right.rdd.name + "_on_" + a.name + "_eq_" + b.name
-
+      val joinId = JoinIdentity(lTable, a.name, right.rdd.name, b.name)
       if (CachedJoin.has(joinId))
         Filter(left.condition, SmartJoin(joinId, left.child, right))
       else j
@@ -55,15 +54,14 @@ object SmartJoinOptimization extends Rule[LogicalPlan] {
         case relation: LogicalRDD => relation.rdd.name
         case _ => ""
       }
-      val joinId = left.rdd.name + "_" + rTable + "_on_" + a.name + "_eq_" + b.name
 
+      val joinId = JoinIdentity(left.rdd.name, a.name, rTable, b.name)
       if (CachedJoin.has(joinId))
         Filter(right.condition, SmartJoin(joinId, left, right.child))
       else j
 
     case j @ Join(left: LogicalRDD, right: LogicalRDD, Inner, Some(EqualTo(a: AttributeReference, b: AttributeReference))) =>
-      val joinId = left.rdd.name + "_" + right.rdd.name + "_on_" + a.name + "_eq_" + b.name
-
+      val joinId = JoinIdentity(left.rdd.name, a.name, right.rdd.name, b.name)
       if (CachedJoin.has(joinId))
         SmartJoin(joinId, left, right)
       else j

@@ -39,20 +39,52 @@ class RowAsInternalRow(val v: Array[Any]) extends GenericInternalRow(v) {
 //  }
 }
 
+class JoinIdentity(val left: String, val right: String) {
+
+  def this(leftTable: String, leftCol: String, rightTable: String, rightCol: String) =
+    this(leftTable + "_" + leftCol, rightTable + "_" + rightCol)
+
+  override def equals(obj: Any): Boolean = obj match {
+    case that: JoinIdentity =>
+      this.left == that.left && this.right == that.right
+
+    case _ => false
+  }
+
+  override def hashCode(): Int = (left + right).hashCode
+
+  def tableName: String = left + "_smartjoin_" + right
+}
+
+object JoinIdentity {
+  def apply(left: String, right: String): JoinIdentity =
+    new JoinIdentity(left, right)
+
+  def apply(leftTable: SmartRelation, leftCol: String, rightTable: SmartRelation, rightCol: String): JoinIdentity =
+    new JoinIdentity(leftTable.name, leftCol, rightTable.name, rightCol)
+
+  def apply(leftTable: String, leftCol: String, rightTable: String, rightCol: String): JoinIdentity =
+    new JoinIdentity(leftTable, leftCol, rightTable, rightCol)
+}
+
 object CachedJoin {
 
-  private var registeredJoins: Map[String, SmartRelation] = Map()
+  private var registeredJoins: Map[JoinIdentity, SmartRelation] = Map()
 
   def registerJoin(joinData: List[Row],
                    leftTable: SmartRelation, leftCol: String,
                    rightTable: SmartRelation, rightCol: String): Unit = {
-    val joinName = leftTable.name + "_" + rightTable.name + "_on_" + leftCol + "_eq_" + rightCol
-    val join = SmartRelation(joinData, StructType(leftTable.schema.union(rightTable.schema)), joinName)
-    registeredJoins += (joinName -> join)
+    val id = JoinIdentity(leftTable, leftCol, rightTable, rightCol)
+    val join = SmartRelation(joinData, StructType(leftTable.schema.union(rightTable.schema)), id.tableName)
+    registeredJoins += (id -> join)
   }
 
-  def has(joinName:String): Boolean = registeredJoins contains joinName
+  def has(joinIdentity: JoinIdentity): Boolean =
+    registeredJoins.contains(joinIdentity) || registeredJoins.contains(JoinIdentity(joinIdentity.right, joinIdentity.left))
 
-  def get(joinName:String, leftOutput: Seq[Attribute], rightOutput: Seq[Attribute]): CachedJoin =
-    CachedJoin(registeredJoins(joinName), leftOutput, rightOutput)
+  def get(joinIdentity: JoinIdentity, leftOutput: Seq[Attribute], rightOutput: Seq[Attribute]): CachedJoin =
+    if (registeredJoins.contains(joinIdentity))
+      CachedJoin(registeredJoins(joinIdentity), leftOutput, rightOutput)
+    else
+      CachedJoin(registeredJoins(JoinIdentity(joinIdentity.right, joinIdentity.left)), rightOutput, leftOutput)
 }

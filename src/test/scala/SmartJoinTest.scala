@@ -1,3 +1,5 @@
+import org.apache.spark.sql.Row
+
 object SmartJoinTest {
   def main(args: Array[String]): Unit = {
     CompanySchema.init()
@@ -25,5 +27,27 @@ object SmartJoinTest {
 
     val df2 = queries.map(spark.sql(_))
     val data2 = df2.map(_.collect())
+
+    def checkSame(data1: Any, data2: Any): Unit = {
+      (data1, data2) match {
+        case (d1: Array[Row], d2: Array[Row]) =>
+          assert(d1.length == d2.length)
+          for (i <- d1.indices)
+            checkSame(d1(i).toSeq.toArray, d2(i).toSeq.toArray)
+
+        case (d1: Array[Any], d2: Array[Any]) =>
+          assert(d1.length == d2.length)
+          for (i <- d1.indices)
+            checkSame(d1(i), d2(i))
+
+        case (d1: Any, d2: Any) =>
+          print(d1)
+          print(", ")
+          println(d2)
+          assert(d1 equals d2)
+      }
+    }
+
+    checkSame(data1, data2)
   }
 }
